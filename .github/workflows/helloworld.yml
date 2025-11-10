@@ -1,59 +1,35 @@
-name: Deploy Node.js to AWS EC2
+name: Deploy to Contentful
 
 on:
   push:
     branches:
-      - main  # Se ejecuta cuando haces push a main
+      - main
 
 jobs:
-  deploy:
+  contentful-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Clonar tu repositorio
+      # 1. Clonar el repositorio
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2️⃣ Conectar a la instancia EC2 por SSH
-      - name: SSH to EC2 and deploy
-        uses: appleboy/ssh-action@v0.1.5
+      # 2. Configurar Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
-          host: ${{ secrets.EC2_HOST }}       # IP de tu instancia EC2 o Elastic IP
-          username: ec2-user                  # Usuario de tu instancia (ej: ec2-user)
-          key: ${{ secrets.EC2_KEY }}        # Tu clave privada SSH
-          port: 22
-          script: |
-            # Directorio donde se guardará el proyecto
-            PROJECT_DIR="/home/ec2-user/mi-proyecto"
+          node-version: '18'
 
-            # Crear carpeta si no existe
-            mkdir -p $PROJECT_DIR
+      # 3. Instalar dependencias
+      - name: Install dependencies
+        run: npm install
 
-            # Moverse al directorio
-            cd $PROJECT_DIR
+      # 4. Configurar variables de entorno para Contentful
+      - name: Set Contentful environment variables
+        run: |
+          echo "CONTENTFUL_SPACE_ID=${{ secrets.CONTENTFUL_SPACE_ID }}" >> $GITHUB_ENV
+          echo "CONTENTFUL_MANAGEMENT_TOKEN=${{ secrets.CONTENTFUL_MANAGEMENT_TOKEN }}" >> $GITHUB_ENV
 
-            # 3️⃣ Instalar Node.js si no está
-            if ! command -v node &> /dev/null
-            then
-              curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo bash -
-              sudo yum install -y nodejs
-            fi
-
-            # 4️⃣ Instalar PM2 si no está
-            if ! command -v pm2 &> /dev/null
-            then
-              sudo npm install -g pm2
-            fi
-
-            # 5️⃣ Clonar o actualizar el repositorio
-            if [ -d ".git" ]; then
-              git pull origin main
-            else
-              git clone https://github.com/TU_USUARIO/TU_REPO.git .
-            fi
-
-            # 6️⃣ Instalar dependencias
-            npm install
-
-            # 7️⃣ Iniciar o reiniciar la app con PM2
-            pm2 restart server.js || pm2 start server.js
+      # 5. Ejecutar script para subir contenido a Contentful
+      - name: Upload content to Contentful
+        run: node uploadContent.js
